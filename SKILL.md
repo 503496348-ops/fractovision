@@ -16,7 +16,7 @@ trigger:
 
 ## 核心封装
 
-**`scripts/minimax_media.py`** — 唯一入口，所有能力归口。
+**`~/.hermes/scripts_lib/minimax_media.py`** — 唯一入口，所有能力归口。
 
 ## 能力总览
 
@@ -37,12 +37,11 @@ from minimax_media import generate_image
 result, err = generate_image(
     prompt="一杯手冲咖啡放在木桌上，阳光从窗户洒进来",
     model="image-01",       # 或 "image-01-pro"
-    resolution="1536P",      # 1K/1536P/2K（注意大写P）
+    size="1:1",             # 1:1 / 16:9 / 9:16 / 3:4 / 4:3（注意是size不是resolution）
 )
 # result: {"image_url": "https://..."} 或 {"image_bytes": b"..."}
-```
 
-**分辨率说明**：不是 `"720p"` 不是 `"1080p"`，是 `"1536P"` / `"2K"`（大写 P）。
+**尺寸说明**：不是 `"720p"` 不是 `"1536P"`，是比例字符串 `"1:1"` / `"16:9"` 等。
 
 ---
 
@@ -52,11 +51,11 @@ result, err = generate_image(
 from minimax_media import generate_video
 
 task_id, err = generate_video(
-    prompt="a cup of coffee on a wooden table",
-    model="video-01",        # 可选 video-01 / video-01-pro
-    duration=6,              # 3/6 秒
-    resolution="768P",       # 768P / 1080P（大写P）
-    poll_interval=5,        # 轮询间隔（秒）
+    prompt="一杯手冲咖啡放在木桌上，阳光从窗户洒进来",
+    model="MiniMax-Hailuo-2.3",  # 可选 MiniMax-Hailuo-2.3 / video-01
+    duration=6,                   # 3 / 6 秒
+    resolution="768P",            # 544P / 768P / 1080P（大写P，不是小写p）
+    poll_interval=5,              # 轮询间隔（秒）
 )
 # 返回 task_id，函数内部自动轮询直至完成并下载
 # 最终文件保存在: ~/.hermes/cron/output/hailuo_{task_id}.mp4

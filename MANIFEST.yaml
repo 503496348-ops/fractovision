@@ -1,0 +1,65 @@
+# minimax-creative MANIFEST
+# 技能包清单 — 本文件定义技能的所有组成部分及生命周期
+
+package: minimax-creative
+version: "1.0.0"
+created: "2026-05-12"
+last_modified: "2026-05-13"
+
+status: active
+
+# 可执行文件
+scripts:
+  - name: minimax_media.py
+    path: /home/ubuntu/.hermes/scripts_lib/minimax_media.py
+    purpose: MiniMax多媒体能力统一封装（图片/视频/语音/音乐）
+    language: python3
+    dependencies:
+      - requests
+      - ffmpeg (libopus codec)
+    entry_points:
+      - generate_image(prompt, model, resolution)
+      - generate_video(prompt, model, duration, resolution)
+      - generate_speech(text, voice_id, speed, emotion, to_feishu_ogg)
+      - generate_music(prompt, lyrics, is_instrumental, duration)
+    caller:
+      - skill: minimax-creative
+        trigger: "@亦菲 生成图片/视频/语音/音乐"
+      - cron: morning_evolution_report (语音播报)
+      - cron: daily_summary_report (语音播报)
+
+# 文档文件
+docs:
+  - path: /home/ubuntu/.hermes/skills/minimax-creative/SKILL.md
+    description: 技能主文档 — 能力总览、调用示例、技术细节
+  - path: /home/ubuntu/.hermes/skills/minimax-creative/references/image-01.md
+    description: 图片生成 API 详细文档
+  - path: /home/ubuntu/.hermes/skills/minimax-creative/references/video-01.md
+    description: 视频生成 API 详细文档
+
+# 依赖项
+system_dependencies:
+  - ffmpeg  # 必须支持 libopus 编码器
+
+python_dependencies:
+  - requests
+
+# 清理策略
+cleanup:
+  temp_files:
+    - pattern: /tmp/minimax_*.mp3
+      ttl_minutes: 60
+    - pattern: /tmp/minimax_*.ogg
+      ttl_minutes: 60
+    - pattern: /tmp/hailuo_*.mp4
+      ttl_minutes: 1440  # 视频保留24小时
+  responsibility: script_self  # 脚本自身负责清理
+
+# 回滚方案
+rollback:
+  backup_dir: /home/ubuntu/.hermes/backups/minimax-creative/
+  procedure: >
+    1. 停止相关 cron 任务
+    2. cp minimax_media.py minimax_media.py.backup.$(date +%s)
+    3. 从备份目录恢复
+    4. 重启 cron 任务

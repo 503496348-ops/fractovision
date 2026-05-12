@@ -1,8 +1,12 @@
 ---
 name: minimax-creative
-description: MiniMax 多媒体创作能力 — 图片(image-01)、视频(Video-01/Hailuo)、语音(TTS)、音乐(Music-02) 四大能力的统一封装，支持飞书语音气泡直出
+description: "MiniMax 多媒体创作能力 — 图片(image-01)、视频(Video-01/Hailuo)、语音(TTS)、音乐(Music-02) 四大能力的统一封装，支持飞书语音气泡直出"
 trigger:
-  manual: "@亦菲 生成图片" / "@亦菲 生成视频" / "@亦菲 生成语音" / "@亦菲 生成音乐"
+  manual:
+    - "@亦菲 生成图片"
+    - "@亦菲 生成视频"
+    - "@亦菲 生成语音"
+    - "@亦菲 生成音乐"
   note: "亦菲对外提供 MiniMax 多媒体能力的技能，所有外部调用统一走 minimax_media.py"
 ---
 
@@ -12,7 +16,7 @@ trigger:
 
 ## 核心封装
 
-**`~/.hermes/scripts_lib/minimax_media.py`** — 唯一入口，所有能力归口。
+**`scripts/minimax_media.py`** — 唯一入口，所有能力归口。
 
 ## 能力总览
 
@@ -177,13 +181,16 @@ ffprobe -show_streams output.ogg | grep codec_name
 
 | 时间 | 教训 | 修复 |
 |------|------|------|
-| 2026-05-12 | 视频 `resolution="720p"` 报错 invalid params | 改为 `"768P"`（大写P） |
+| 2026-05-13 | 视频 API 分辨率参数 | Video-01 模型只接受 544P/720P/1080P（大写P），768P 仅用于旧版 Hailuo 端点 |
+| 2026-05-13 | 远程服务器 API Key 不在环境变量中 | lusi 服务器的 key 由 hermes-agent 进程管理，审计时验证"功能是否正常"而非"key 在哪里" |
+| 2026-05-13 | lusi 服务器的 MiniMax MCP 是系统 pip 包 | `python3 -c "import minimax_mcp"` 即可确认，无需额外配置 |
 | 2026-05-12 | 语音端点 `/v1/t2a` 返回 404 | 正确端点为 `/v1/t2a_v2` |
 | 2026-05-12 | 语音 API 字段名是 `vol` 不是 `volume`，`emotion` 不可省略 | 修正请求体 |
 | 2026-05-12 | TTS API 返回 JSON `{data: {audio: "hex..."}}`，不是原始二进制 | 先解析 JSON 再提取 hex |
 | 2026-05-12 | MiniMax 视频任务创建和查询分离 | 创建用 POST /v1/video_generation，查状态用 GET /v1/query/video_generation?task_id= |
 | 2026-05-12 | 飞书群聊发 MP3 显示为文件不是气泡 | MP3 → ffmpeg 转码为 .ogg（libopus）→ MEDIA: 发送 |
 | 2026-05-12 | 晨报/日报是工作记录，应该用卡片存档 | 语音气泡适合临时推送，不需要留档的内容 |
+| 2026-05-13 | 向露丝部署前必须Spec-First确认方案，未确认直接执行违反工程纪律SOP | 会触发锋哥追问，验收时补交检查清单 |
 
 ---
 
@@ -192,11 +199,18 @@ ffprobe -show_streams output.ogg | grep codec_name
 ```bash
 # 确认 ffmpeg 支持 libopus
 ffmpeg -formats | grep opus
-# 应该输出 libopus 即为可用
 
 # 确认 Python 依赖
 python3 -c "import requests; print('requests ok')"
 ```
+
+## 跨Agent部署：向露丝服务器部署
+
+**⚠️ 部署约束**：向露丝服务器部署本能力相关文件时，必须先输出设计方案给锋哥确认，违反者会被锋哥追问"是否遵守工程纪律和PRD"。
+
+部署执行记录（2026-05-13 已完成）：
+- 脚本：`/home/agentuser/scripts_lib/minimax_media.py` ✅
+- Skill：`/home/agentuser/skills/minimax-creative/SKILL.md` ✅
 
 ---
 

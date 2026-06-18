@@ -1,13 +1,13 @@
-# hermes-skill-minimax-creative
+# fractovision
 
-MiniMax 多媒体创作技能 — 图片、视频、语音、音乐四大能力统一封装，支持飞书语音气泡直出。
+破窗造视 · Fractovision — 图片、视频、语音、音乐四大能力统一封装，支持飞书语音气泡直出。
 
 ## 快速开始
 
 ```bash
 # 克隆到本地 Hermes skills 目录
-git clone https://github.com/503496348-ops/hermes-skill-minimax-creative.git \
-  ~/.hermes/skills/minimax-creative
+git clone https://github.com/503496348-ops/fractovision.git \
+  ~/.hermes/skills/fractovision
 ```
 
 ## 能力一览

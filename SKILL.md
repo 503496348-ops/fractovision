@@ -1,22 +1,22 @@
 ---
-name: minimax-creative
-description: "MiniMax 多媒体创作能力 — 图片(image-01)、视频(Video-01/Hailuo)、语音(TTS)、音乐(Music-02) 四大能力的统一封装，支持飞书语音气泡直出"
+name: fractovision
+description: "破窗造视 · Fractovision — 图片(image-01)、视频(Video-01/Hailuo)、语音(TTS)、音乐(Music-02) 四大能力的统一封装，支持飞书语音气泡直出"
 trigger:
   manual:
     - "@亦菲 生成图片"
     - "@亦菲 生成视频"
     - "@亦菲 生成语音"
     - "@亦菲 生成音乐"
-  note: "亦菲对外提供 MiniMax 多媒体能力的技能，所有外部调用统一走 minimax_media.py"
+  note: "亦菲对外提供 MiniMax 多媒体能力的技能，所有外部调用统一走 fractovision_media.py"
 ---
 
-# minimax-creative
+# fractovision
 
-> MiniMax 多媒体创作能力统一封装 — 图片、视频、语音、音乐，一套接口全部搞定。
+> 破窗造视 · Fractovision统一封装 — 图片、视频、语音、音乐，一套接口全部搞定。
 
 ## 核心封装
 
-**`~/.hermes/scripts_lib/minimax_media.py`** — 唯一入口，所有能力归口。
+**`~/.hermes/scripts_lib/fractovision_media.py`** — 唯一入口，所有能力归口。
 
 ## 能力总览
 
@@ -32,7 +32,7 @@ trigger:
 ## 图片生成
 
 ```python
-from minimax_media import generate_image
+from fractovision_media import generate_image
 
 result, err = generate_image(
     prompt="一杯手冲咖啡放在木桌上，阳光从窗户洒进来",
@@ -48,7 +48,7 @@ result, err = generate_image(
 ## 视频生成
 
 ```python
-from minimax_media import generate_video
+from fractovision_media import generate_video
 
 task_id, err = generate_video(
     prompt="一杯手冲咖啡放在木桌上，阳光从窗户洒进来",
@@ -70,7 +70,7 @@ task_id, err = generate_video(
 ### 标准 MP3 用法
 
 ```python
-from minimax_media import generate_speech
+from fractovision_media import generate_speech
 
 audio_bytes, err = generate_speech(
     text="锋哥，今天的晨报来了。今天重点推进和君纵达的数据对接。",
@@ -105,7 +105,7 @@ ogg_path, err = generate_speech(
 ## 音乐生成
 
 ```python
-from minimax_media import generate_music
+from fractovision_media import generate_music
 
 result, err = generate_music(
     prompt="relaxing ambient music, soft piano, nature sounds",
@@ -122,7 +122,7 @@ result, err = generate_music(
 
 ### 自动读取
 
-`minimax_media.py` 会按以下顺序查找 `MINIMAX_API_KEY`：
+`fractovision_media.py` 会按以下顺序查找 `MINIMAX_API_KEY`：
 
 ```python
 # 1. 环境变量
@@ -141,7 +141,7 @@ os.environ["MINIMAX_API_KEY"] = "your_key_here"
 ### 验证凭证是否有效
 
 ```python
-from minimax_media import get_config
+from fractovision_media import get_config
 cfg = get_config()
 print(cfg["api_key"])  # 确认能读到
 ```
@@ -208,8 +208,8 @@ python3 -c "import requests; print('requests ok')"
 **⚠️ 部署约束**：向露丝服务器部署本能力相关文件时，必须先输出设计方案给锋哥确认，违反者会被锋哥追问"是否遵守工程纪律和PRD"。
 
 部署执行记录（2026-05-13 已完成）：
-- 脚本：`/home/agentuser/scripts_lib/minimax_media.py` ✅
-- Skill：`/home/agentuser/skills/minimax-creative/SKILL.md` ✅
+- 脚本：`/home/agentuser/scripts_lib/fractovision_media.py` ✅
+- Skill：`/home/agentuser/skills/fractovision/SKILL.md` ✅
 
 ---
 
@@ -217,18 +217,18 @@ python3 -c "import requests; print('requests ok')"
 
 ```python
 # 语音气泡验证（完整链路）
-from minimax_media import generate_speech
+from fractovision_media import generate_speech
 ogg_path, err = generate_speech("测试语音气泡", to_feishu_ogg=True)
 print(ogg_path)  # /tmp/xxx_feishu.ogg
 # 用 send_message 发送: MEDIA:ogg_path
 
 # 图片验证
-from minimax_media import generate_image
+from fractovision_media import generate_image
 result, err = generate_image("一只橘猫在窗台上晒太阳")
 print(result.get("image_url"))
 
 # 视频验证
-from minimax_media import generate_video
+from fractovision_media import generate_video
 path, err = generate_video("一只橘猫在窗台上晒太阳")
 print(path)  # ~/.hermes/cron/output/hailuo_xxx.mp4
 ```

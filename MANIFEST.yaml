@@ -1,7 +1,7 @@
-# minimax-creative MANIFEST
+# fractovision MANIFEST
 # 技能包清单 — 本文件定义技能的所有组成部分及生命周期
 
-package: minimax-creative
+package: fractovision
 version: "1.0.0"
 created: "2026-05-12"
 last_modified: "2026-05-13"
@@ -12,7 +12,7 @@ status: active
 scripts:
   - name: minimax_media.py
     path: /home/ubuntu/.hermes/scripts_lib/minimax_media.py
-    purpose: MiniMax多媒体能力统一封装（图片/视频/语音/音乐）
+    purpose: 破窗造视 - Fractovision
     language: python3
     dependencies:
       - requests
@@ -23,18 +23,18 @@ scripts:
       - generate_speech(text, voice_id, speed, emotion, to_feishu_ogg)
       - generate_music(prompt, lyrics, is_instrumental, duration)
     caller:
-      - skill: minimax-creative
+      - skill: fractovision
         trigger: "@亦菲 生成图片/视频/语音/音乐"
       - cron: morning_evolution_report (语音播报)
       - cron: daily_summary_report (语音播报)
 
 # 文档文件
 docs:
-  - path: /home/ubuntu/.hermes/skills/minimax-creative/SKILL.md
+  - path: /home/ubuntu/.hermes/skills/fractovision/SKILL.md
     description: 技能主文档 — 能力总览、调用示例、技术细节
-  - path: /home/ubuntu/.hermes/skills/minimax-creative/references/image-01.md
+  - path: /home/ubuntu/.hermes/skills/fractovision/references/image-01.md
     description: 图片生成 API 详细文档
-  - path: /home/ubuntu/.hermes/skills/minimax-creative/references/video-01.md
+  - path: /home/ubuntu/.hermes/skills/fractovision/references/video-01.md
     description: 视频生成 API 详细文档
 
 # 依赖项
@@ -57,7 +57,7 @@ cleanup:
 
 # 回滚方案
 rollback:
-  backup_dir: /home/ubuntu/.hermes/backups/minimax-creative/
+  backup_dir: /home/ubuntu/.hermes/backups/fractovision/
   procedure: >
     1. 停止相关 cron 任务
     2. cp minimax_media.py minimax_media.py.backup.$(date +%s)

@@ -1,8 +1,9 @@
 # 破窗造视 · Fractovision
 
 > 图片、视频、语音、音乐 — 四大 AI 创作能力，一套接口全部搞定。
+> 新增 **Wan2.1 视频后端**（文生视频 / 图生视频 / 首尾帧插值）+ 统一分辨率路由。
 
-Fractovision 基于 [MiniMax](https://platform.minimaxi.com/) API，将图片生成、视频生成、语音合成、音乐生成统一封装为简洁的 Python 函数。支持飞书语音气泡直出、批量管线处理，适用于自动化工作流和 Hermes Agent 技能集成。
+Fractovision 基于 [MiniMax](https://platform.minimaxi.com/) API + [Wan2.1](https://github.com/Wan-Video/Wan2.1)（阿里 DashScope），将图片生成、视频生成、语音合成、音乐生成统一封装为简洁的 Python 函数。支持飞书语音气泡直出、多后端视频路由、批量管线处理，适用于自动化工作流和 Hermes Agent 技能集成。
 
 ---
 
@@ -12,8 +13,24 @@ Fractovision 基于 [MiniMax](https://platform.minimaxi.com/) API，将图片生
 |------|------|----------|-----------|----------|
 | 🖼️ 图片生成 | image-01 / image-01-pro | `generate_image()` | 同步 | ❌ 图片消息 |
 | 🎬 视频生成 | MiniMax-Hailuo-2.3 / Video-01 | `generate_video()` | 异步轮询 | ❌ 视频消息 |
+| 🎬 视频生成 (Wan2.1) | wan2.1-t2v / i2v / flf2v | `generate_video_wan()` | 异步轮询 | ❌ 视频消息 |
 | 🗣️ 语音合成 | speech-2.8-hd | `generate_speech()` | 同步 | ✅ `.ogg` 气泡 |
 | 🎵 音乐生成 | music-2.6 | `generate_music()` | 异步轮询 | ❌ 音频附件 |
+
+---
+
+## 🎬 视频后端对比
+
+| 特性 | MiniMax Hailuo | Wan2.1 (DashScope) |
+|------|---------------|---------------------|
+| 文生视频 (T2V) | ✅ | ✅ |
+| 图生视频 (I2V) | ❌ | ✅ |
+| 首尾帧插值 (FLF2V) | ❌ | ✅ |
+| 分辨率 | 544P / 768P / 1080P | 480P / 720P / 1080P |
+| 时长 | 3s / 6s / 10s | 5s / 10s |
+| 风格预设 | ❌ | ✅ cinematic / anime / realistic / ... |
+| 提示词增强 | ❌ | ✅ 运动/镜头语言优化 |
+| API Key | `MINIMAX_API_KEY` | `DASHSCOPE_API_KEY` |
 
 ---
 
@@ -50,7 +67,7 @@ print(result)  # data:image/png;base64,...
 ```
 
 ### 第 4 步：生成视频
-
+### 第 4 步：生成视频
 ```python
 from scripts.minimax_media import generate_video
 
@@ -60,7 +77,39 @@ video_path, err = generate_video(
     duration=6,
     resolution="768P",
 )
-print(video_path)  # ~/Desktop/hailuo_video_20260619_120000.mp4
+print(video_path)
+```
+
+### 第 4b 步：用 Wan2.1 生成视频
+
+```python
+from scripts.wan_video import generate_video_wan
+
+# 文生视频
+video_path, err = generate_video_wan(
+    prompt="一只橘猫在窗台上晒太阳，慵懒地伸了个懒腰",
+    model="wan2.1-t2v-plus",
+    duration=5,
+    resolution="720P",
+    style="cinematic",     # 风格预设
+)
+
+# 图生视频（Wan2.1 独有）
+from scripts.wan_video import generate_video_wan_i2v
+video_path, err = generate_video_wan_i2v(
+    image_url="https://example.com/cat.jpg",
+    prompt="猫伸懒腰",
+    resolution="720P",
+)
+
+# 统一路由（自动选择后端）
+from scripts.video_router import generate_video
+video_path, err = generate_video(
+    prompt="日落延时摄影",
+    model="wan2.1-t2v-plus",   # 自动路由到 Wan2.1
+    resolution="480P",
+    style="nature",
+)
 ```
 
 ### 第 5 步：语音合成
@@ -112,6 +161,47 @@ generate_video(
 ) -> tuple[file_path | None, error | None]
 ```
 
+### 视频生成 (Wan2.1) `generate_video_wan()`
+
+```python
+generate_video_wan(
+    prompt: str,                         # 视频描述（必填）
+    model: str = "wan2.1-t2v-plus",     # 模型（t2v-plus / t2v-turbo）
+    duration: int = 5,                   # 时长：5 / 10 秒
+    resolution: str = "720P",           # 分辨率：480P / 720P / 1080P
+    orientation: str = "landscape",      # landscape / portrait
+    style: str = None,                   # 风格预设：cinematic/anime/realistic/...
+    motion: str = None,                  # 镜头运动描述
+    negative: str = None,               # 负面提示词
+    output_dir: str = None,
+) -> tuple[file_path | None, error | None]
+```
+
+### 图生视频 (Wan2.1) `generate_video_wan_i2v()`
+
+```python
+generate_video_wan_i2v(
+    image_url: str,                      # 图片 URL（必填）
+    prompt: str = "",                    # 运动描述
+    model: str = "wan2.1-i2v-plus",     # 模型
+    duration: int = 5,
+    resolution: str = "720P",
+    orientation: str = "landscape",
+) -> tuple[file_path | None, error | None]
+```
+
+### 首尾帧插值 (Wan2.1) `generate_video_wan_flf2v()`
+
+```python
+generate_video_wan_flf2v(
+    first_frame_url: str,               # 首帧图片 URL
+    last_frame_url: str,                # 尾帧图片 URL
+    prompt: str = "",                   # 可选描述
+    duration: int = 5,
+    resolution: str = "720P",
+) -> tuple[file_path | None, error | None]
+```
+
 ### 语音合成 `generate_speech()`
 
 ```python
@@ -150,8 +240,10 @@ fractovision/
 ├── LICENSE                    # MIT 许可证
 ├── requirements.txt           # Python 依赖（requests）
 └── scripts/
-    ├── minimax_media.py       # 核心封装 — 图片/视频/语音/音乐四合一入口
-    └── media_pipeline.py      # 批量管线 — MediaBatch 多任务编排
+    ├── minimax_media.py       # 核心封装 — MiniMax 图片/视频/语音/音乐四合一
+    ├── media_pipeline.py      # 批量管线 — MediaBatch 多任务编排
+    ├── wan_video.py           # Wan2.1 后端 — 文生视频/图生视频/首尾帧插值
+    └── video_router.py        # 统一路由 — MiniMax + Wan2.1 多后端选择
 ```
 
 ---
@@ -160,7 +252,10 @@ fractovision/
 
 ```bash
 # Python 依赖
-pip install requests
+pip install requests  # 核心依赖
+
+# Wan2.1 后端（可选，需要阿里云 DashScope API Key）
+export DASHSCOPE_API_KEY="your_dashscope_key"
 
 # 系统依赖（语音气泡转码需要 ffmpeg + libopus）
 sudo apt install ffmpeg
@@ -169,6 +264,41 @@ ffmpeg -formats | grep opus  # 验证 libopus 可用
 
 ---
 
+## API Key 配置
+
+| 后端 | 环境变量 | 获取地址 |
+|------|----------|----------|
+| MiniMax | `MINIMAX_API_KEY` | [MiniMax 开放平台](https://platform.minimaxi.com/) |
+| Wan2.1 | `DASHSCOPE_API_KEY` | [阿里云 DashScope](https://dashscope.console.aliyun.com/) |
+
+两个 Key 可以同时配置，系统会根据模型名自动路由到对应后端。
+
+---
+
+## Wan2.1 风格预设
+
+| 预设名 | 效果 |
+--------|------|
+| `cinematic` | 电影感，胶片颗粒，戏剧性光线 |
+| `anime` | 动画风格，鲜艳色彩，吉卜力美学 |
+| `realistic` | 照片级真实，高细节，自然光线 |
+| `documentary` | 纪录片风格，自然运动，手持感 |
+| `music-video` | MV风格，霓虹色彩，动态剪辑 |
+| `product` | 产品展示，影棚灯光，干净背景 |
+| `nature` | 自然纪录片，黄金时刻，缓慢优雅运动 |
+
+使用示例：
+```python
+from scripts.wan_video import generate_video_wan
+video_path, err = generate_video_wan(
+    prompt="一朵玫瑰花缓缓绽放",
+    style="cinematic",
+    motion="slow dolly zoom in",
+    resolution="720P",
+)
+```
+
+---
 ## 飞书语音气泡说明
 
 飞书客户端根据 MIME type 判断消息类型：

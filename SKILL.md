@@ -1,6 +1,6 @@
 ---
 name: fractovision
-description: "破窗造视 · Fractovision — 图片(image-01)、视频(Video-01/Hailuo)、语音(TTS)、音乐(Music-02) 四大能力的统一封装，支持飞书语音气泡直出"
+description: "破窗造视 · Fractovision — 图片(image-01)、视频(Video-01/Hailuo + Wan2.1)、语音(TTS)、音乐(Music-02) 四大能力的统一封装，支持飞书语音气泡直出、多后端视频路由、图生视频、首尾帧插值"
 trigger:
   manual:
     - "@亦菲 生成图片"
@@ -13,10 +13,13 @@ trigger:
 # fractovision
 
 > 破窗造视 · Fractovision统一封装 — 图片、视频、语音、音乐，一套接口全部搞定。
+> 新增 Wan2.1 视频后端（文生视频 / 图生视频 / 首尾帧插值）+ 统一分辨率路由。
 
 ## 核心封装
 
 **`~/.hermes/scripts_lib/fractovision_media.py`** — 唯一入口，所有能力归口。
+**`~/.hermes/scripts_lib/wan_video.py`** — Wan2.1 视频后端。
+**`~/.hermes/scripts_lib/video_router.py`** — 统一视频路由。
 
 ## 能力总览
 
@@ -24,8 +27,21 @@ trigger:
 |------|------|------|---------|
 | 图片生成 | image-01 / image-01-pro | ✅ 可用 | ❌ 只能发图片 |
 | 视频生成 | Video-01 (Hailuo) | ✅ 可用 | ❌ 只能发视频 |
+| 视频生成 (Wan2.1) | wan2.1-t2v / i2v / flf2v | ✅ 可用 | ❌ 只能发视频 |
 | 语音合成 | speech-2.8-hd | ✅ 可用 | ✅ 支持 .ogg |
 | 音乐生成 | music-02 | ✅ 可用 | ❌ 只能发音频 |
+
+## 视频后端对比
+
+| 特性 | MiniMax Hailuo | Wan2.1 (DashScope) |
+|------|---------------|---------------------|
+| 文生视频 | ✅ | ✅ |
+| 图生视频 (I2V) | ❌ | ✅ |
+| 首尾帧插值 (FLF2V) | ❌ | ✅ |
+| 分辨率 | 544P / 768P / 1080P | 480P / 720P / 1080P |
+| 时长 | 3s / 6s / 10s | 5s / 10s |
+| 风格预设 | ❌ | ✅ cinematic / anime / realistic 等7种 |
+| API Key | MINIMAX_API_KEY | DASHSCOPE_API_KEY |
 
 ---
 
@@ -62,6 +78,49 @@ task_id, err = generate_video(
 ```
 
 **异步流程**：创建任务 → 轮询状态 → 下载视频 → 返回本地路径。
+
+## Wan2.1 视频生成
+
+```python
+from scripts.wan_video import generate_video_wan, generate_video_wan_i2v, generate_video_wan_flf2v
+
+# 文生视频
+path, err = generate_video_wan(
+    prompt="一朵玫瑰花缓缓绽放",
+    model="wan2.1-t2v-plus",
+    duration=5,
+    resolution="720P",
+    style="cinematic",     # 风格预设：cinematic / anime / realistic / documentary / music-video / product / nature
+    motion="slow dolly zoom in",  # 镜头运动
+)
+
+# 图生视频（Wan2.1 独有能力）
+path, err = generate_video_wan_i2v(
+    image_url="https://example.com/cat.jpg",
+    prompt="猫伸懒腰",
+    resolution="720P",
+)
+
+# 首尾帧插值（Wan2.1 独有能力）
+path, err = generate_video_wan_flf2v(
+    first_frame_url="https://example.com/start.jpg",
+    last_frame_url="https://example.com/end.jpg",
+    duration=5,
+    resolution="720P",
+)
+
+# 统一路由（自动选择后端）
+from scripts.video_router import generate_video
+path, err = generate_video(
+    prompt="日落延时摄影",
+    model="wan2.1-t2v-plus",   # 自动路由到 Wan2.1
+    resolution="480P",
+    style="nature",
+)
+```
+
+**Wan2.1 风格预设列表**：
+cinematic（电影感）、anime（动画）、realistic（写实）、documentary（纪录片）、music-video（MV）、product（产品展示）、nature（自然纪录片）
 
 ---
 
@@ -180,6 +239,7 @@ ffprobe -show_streams output.ogg | grep codec_name
 
 | 时间 | 教训 | 修复 |
 |------|------|------|
+| 2026-06-20 | Wan2.1 后端集成 — 新增 wan_video.py 和 video_router.py | 支持 T2V / I2V / FLF2V，统一分辨率 480P/720P/1080P |
 | 2026-05-13 | 视频 API 分辨率参数 | Video-01 模型只接受 544P/720P/1080P（大写P），768P 仅用于旧版 Hailuo 端点 |
 | 2026-05-13 | 远程服务器 API Key 不在环境变量中 | lusi 服务器的 key 由 hermes-agent 进程管理，审计时验证"功能是否正常"而非"key 在哪里" |
 | 2026-05-13 | lusi 服务器的 MiniMax MCP 是系统 pip 包 | `python3 -c "import minimax_mcp"` 即可确认，无需额外配置 |

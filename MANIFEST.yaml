@@ -2,9 +2,9 @@
 # 技能包清单 — 本文件定义技能的所有组成部分及生命周期
 
 package: fractovision
-version: "1.0.0"
+version: "1.1.0"
 created: "2026-05-12"
-last_modified: "2026-05-13"
+last_modified: "2026-06-20"
 
 status: active
 
@@ -28,6 +28,33 @@ scripts:
       - cron: morning_evolution_report (语音播报)
       - cron: daily_summary_report (语音播报)
 
+  - name: wan_video.py
+    path: scripts/wan_video.py
+    purpose: "Wan2.1 视频后端 — 文生视频 / 图生视频 / 首尾帧插值"
+    language: python3
+    dependencies:
+      - requests
+    env_vars:
+      - DASHSCOPE_API_KEY
+    entry_points:
+      - generate_video_wan(prompt, model, duration, resolution, style, motion)
+      - generate_video_wan_i2v(image_url, prompt, model, duration, resolution)
+      - generate_video_wan_flf2v(first_frame_url, last_frame_url, prompt, duration, resolution)
+      - enhance_video_prompt(prompt, style, motion, negative)
+      - list_wan_models()
+      - resolve_dimensions(resolution, orientation)
+
+  - name: video_router.py
+    path: scripts/video_router.py
+    purpose: "统一视频路由 — MiniMax + Wan2.1 多后端选择"
+    language: python3
+    dependencies:
+      - requests
+    entry_points:
+      - generate_video(prompt, model, duration, resolution, backend, ...)
+      - list_backends()
+      - normalize_resolution(resolution, backend)
+
 # 文档文件
 docs:
   - path: /home/ubuntu/.hermes/skills/fractovision/SKILL.md
@@ -43,6 +70,7 @@ system_dependencies:
 
 python_dependencies:
   - requests
+  - dashscope (optional, for Wan2.1 local inference)
 
 # 清理策略
 cleanup:

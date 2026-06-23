@@ -1,6 +1,6 @@
 ---
 name: fractovision
-description: "破窗造视 · Fractovision — 图片(image-01)、视频(Video-01/Hailuo + Wan2.1)、语音(TTS)、音乐(Music-02)、3D模型(GLB) 五大能力的统一封装，支持飞书语音气泡直出、多后端视频路由、图生视频、首尾帧插值、3D模型处理"
+description: "MiniMax全模态创作引擎。图片+视频+语音+音乐四合一生成。当需要AI生成图片、视频、语音、音乐或多媒体内容时使用。"
 trigger:
   manual:
     - "@亦菲 生成图片"
@@ -19,6 +19,8 @@ triggers:
 ---
 
 # fractovision
+
+> 📖 详细文档见 `references/` 目录
 
 > 破窗造视 · Fractovision统一封装 — 图片、视频、语音、音乐、3D模型，一套接口全部搞定。
 > 新增 Wan2.1 视频后端（文生视频 / 图生视频 / 首尾帧插值）+ 统一分辨率路由 + 3D模型处理。
@@ -96,3 +98,12 @@ if load_result.mesh_data:
 - GLTF (JSON glTF)
 - OBJ (Wavefront)
 - FBX (Autodesk)
+
+## 工作流
+
+使用此技能时，按以下步骤执行：
+- [ ] 1. 确认用户需求和使用场景
+- [ ] 2. 加载相关代码和配置
+- [ ] 3. 执行核心功能
+- [ ] 4. 验证输出结果
+- [ ] 5. 反馈给用户

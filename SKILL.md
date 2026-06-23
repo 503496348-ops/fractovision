@@ -9,6 +9,13 @@ trigger:
     - "@亦菲 生成音乐"
     - "@亦菲 处理3D模型"
   note: "亦菲对外提供 MiniMax 多媒体能力的技能，所有外部调用统一走 fractovision_media.py"
+
+triggers:
+  - 多媒体生成
+  - 图片生成
+  - 视频生成
+  - fractovision
+  - 破窗造视
 ---
 
 # fractovision

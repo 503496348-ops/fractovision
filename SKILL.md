@@ -1,5 +1,6 @@
 ---
 name: fractovision
+version: 1.2.0
 description: "MiniMax全模态创作引擎。图片+视频+语音+音乐四合一生成。当需要AI生成图片、视频、语音、音乐或多媒体内容时使用。"
 trigger:
   manual:

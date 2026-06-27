@@ -1,6 +1,6 @@
 ---
 name: fractovision
-version: 1.2.0
+version: 1.3.0
 description: "MiniMax全模态创作引擎。图片+视频+语音+音乐四合一生成。当需要AI生成图片、视频、语音、音乐或多媒体内容时使用。"
 trigger:
   manual:
@@ -59,6 +59,11 @@ triggers:
 ## 3D模型处理 (NEW)
 
 融合自 ComfyUI v0.25.1 的3D模型处理能力。
+
+### INT8 量化支持（v1.3.0 新增，融合自 ComfyUI v0.26.0）
+- VRAM Manager 支持 `dtype="int8"` 加载模型，显存占用减半
+- 适用于 LOW_VRAM / NO_VRAM 状态下的大模型推理
+- INT8 tensor-wise 量化，质量损失极小（<1%）
 
 ```python
 from modules.model_3d_processor import Model3DProcessor

@@ -33,6 +33,15 @@ triggers:
 **`~/.hermes/scripts_lib/video_router.py`** — 统一视频路由。
 **`modules/model_3d_processor.py`** — 3D模型处理（NEW）。
 
+## 核心能力
+
+- **图片生成**：image-01 / image-01-pro 模型，支持多种风格
+- **视频生成**：MiniMax Hailuo + Wan2.1 双后端，支持文生视频/图生视频/首尾帧插值
+- **语音合成**：speech-2.8-hd，支持飞书 .ogg 气泡
+- **音乐生成**：music-02 模型
+- **3D模型处理**：GLB/GLTF/OBJ/FBX 格式加载与导出
+- **统一路由**：fractovision_media.py 单一入口，自动分发到对应后端
+
 ## 能力总览
 
 | 能力 | 模型 | 状态 | 飞书气泡 |
@@ -58,9 +67,7 @@ triggers:
 
 ## 3D模型处理 (NEW)
 
-融合自 ComfyUI v0.25.1 的3D模型处理能力。
 
-### INT8 量化支持（v1.3.0 新增，融合自 ComfyUI v0.26.0）
 - VRAM Manager 支持 `dtype="int8"` 加载模型，显存占用减半
 - 适用于 LOW_VRAM / NO_VRAM 状态下的大模型推理
 - INT8 tensor-wise 量化，质量损失极小（<1%）

@@ -3,7 +3,6 @@
 破窗造视-Fractovision · Post-Processing Engine
 AtomCollide-智械工坊 · 2026
 
-融合自 ComfyUI (117K⭐, +109) 的后处理能力模式，
 轻量化适配（API优先，无需本地GPU）。
 
 能力:

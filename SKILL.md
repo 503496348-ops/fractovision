@@ -65,6 +65,73 @@ triggers:
 | 风格预设 | ❌ | ✅ cinematic / anime / realistic 等7种 |
 | API Key | MINIMAX_API_KEY | DASHSCOPE_API_KEY |
 
+## ComfyUI 本地生成 (NEW)
+
+新增 ComfyUI 本地 GPU 加速生成能力，无需 API Key，支持自定义工作流。
+
+### 视频生成
+
+```python
+from modules.comfyui_engine.comfyui_video import ComfyUIVideo
+
+tool = ComfyUIVideo()
+result = tool.execute({
+    "prompt": "A cat walking in the rain",
+    "operation": "text_to_video",
+    "width": 512,
+    "height": 512,
+    "num_frames": 16,
+    "fps": 8,
+})
+
+if result.success:
+    print(f"视频生成成功: {result.artifacts}")
+```
+
+### 图片生成
+
+```python
+from modules.comfyui_engine.comfyui_image import ComfyUIImage
+
+tool = ComfyUIImage()
+result = tool.execute({
+    "prompt": "A beautiful sunset over the ocean",
+    "operation": "text_to_image",
+    "width": 1024,
+    "height": 1024,
+    "steps": 20,
+    "cfg_scale": 7.0,
+})
+
+if result.success:
+    print(f"图片生成成功: {result.artifacts}")
+```
+
+### 支持的操作
+
+| 操作 | 说明 | 需要参数 |
+|------|------|---------|
+| text_to_video | 文生视频 | prompt |
+| image_to_video | 图生视频 | prompt, image_path |
+| text_to_image | 文生图片 | prompt |
+| image_to_image | 图片转换 | prompt, image_path |
+| inpainting | 局部重绘 | prompt, image_path, mask_path |
+| workflow_video | 自定义工作流 | workflow_path |
+| workflow_image | 自定义工作流 | workflow_path |
+
+### 系统要求
+
+- NVIDIA GPU (6GB+ VRAM 推荐)
+- PyTorch + CUDA
+- ComfyUI 已安装
+
+### 优势
+
+- **无 API Key**：本地运行，无需网络
+- **隐私保护**：数据不出本地
+- **自定义工作流**：支持任意 ComfyUI 节点组合
+- **批量生成**：支持 batch_size 参数
+
 ## 3D模型处理 (NEW)
 
 

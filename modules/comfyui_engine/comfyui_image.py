@@ -12,23 +12,133 @@ import time
 from pathlib import Path
 from typing import Any
 
-# Add Fractovision to path
-FRACTOVISION_ROOT = Path(__file__).resolve().parent.parent.parent / "fractovision"
-if str(FRACTOVISION_ROOT) not in sys.path:
-    sys.path.insert(0, str(FRACTOVISION_ROOT))
+# Add Fractovision and OpenMontage to path
+FILE_DIR = Path(__file__).resolve().parent
+FRACTOVISION_ROOT = FILE_DIR.parent.parent  # fractovision/
+OPENMONTAGE_ROOT = FRACTOVISION_ROOT.parent / "OpenMontage"
+for p in [str(OPENMONTAGE_ROOT), str(FRACTOVISION_ROOT)]:
+    if p not in sys.path:
+        sys.path.insert(0, p)
 
-from tools.base_tool import (
-    BaseTool,
-    Determinism,
-    ExecutionMode,
-    ResourceProfile,
-    RetryPolicy,
-    ToolResult,
-    ToolRuntime,
-    ToolStability,
-    ToolStatus,
-    ToolTier,
-)
+try:
+    from tools.base_tool import (
+        BaseTool,
+        Determinism,
+        ExecutionMode,
+        ResourceProfile,
+        RetryPolicy,
+        ToolResult,
+        ToolRuntime,
+        ToolStability,
+        ToolStatus,
+        ToolTier,
+    )
+except ImportError:
+    # Fallback: minimal stubs if OpenMontage not available
+    from dataclasses import dataclass, field
+    from enum import Enum
+    from typing import Any, Optional
+    
+    class ToolTier(str, Enum):
+        CORE = "core"
+        VOICE = "voice"
+        ENHANCE = "enhance"
+        GENERATE = "generate"
+        SOURCE = "source"
+        ANALYZE = "analyze"
+        PUBLISH = "publish"
+    
+    class ToolStability(str, Enum):
+        EXPERIMENTAL = "experimental"
+        BETA = "beta"
+        PRODUCTION = "production"
+    
+    class ToolStatus(str, Enum):
+        AVAILABLE = "available"
+        UNAVAILABLE = "unavailable"
+        DEGRADED = "degraded"
+    
+    class ToolRuntime(str, Enum):
+        LOCAL = "local"
+        LOCAL_GPU = "local_gpu"
+        API = "api"
+        HYBRID = "hybrid"
+    
+    class ExecutionMode(str, Enum):
+        SYNC = "sync"
+        ASYNC = "async"
+    
+    class Determinism(str, Enum):
+        DETERMINISTIC = "deterministic"
+        SEEDED = "seeded"
+        STOCHASTIC = "stochastic"
+    
+    class ResumeSupport(str, Enum):
+        NONE = "none"
+        FROM_START = "from_start"
+        FROM_CHECKPOINT = "from_checkpoint"
+    
+    @dataclass
+    class ResourceProfile:
+        cpu_cores: int = 1
+        ram_mb: int = 512
+        vram_mb: int = 0
+        disk_mb: int = 100
+        network_required: bool = False
+    
+    @dataclass
+    class RetryPolicy:
+        max_retries: int = 0
+        backoff_seconds: float = 1.0
+        retryable_errors: list[str] = field(default_factory=list)
+    
+    @dataclass
+    class ToolResult:
+        success: bool
+        data: dict[str, Any] = field(default_factory=dict)
+        artifacts: list[str] = field(default_factory=list)
+        error: Optional[str] = None
+        cost_usd: float = 0.0
+        duration_seconds: float = 0.0
+        seed: Optional[int] = None
+        model: Optional[str] = None
+    
+    class BaseTool:
+        name: str = ""
+        version: str = "0.1.0"
+        tier: ToolTier = ToolTier.CORE
+        stability: ToolStability = ToolStability.EXPERIMENTAL
+        execution_mode: ExecutionMode = ExecutionMode.SYNC
+        determinism: Determinism = Determinism.DETERMINISTIC
+        runtime: ToolRuntime = ToolRuntime.LOCAL
+        dependencies: list[str] = []
+        install_instructions: str = ""
+        capability: str = "generic"
+        provider: str = "openmontage"
+        capabilities: list[str] = []
+        input_schema: dict = {}
+        output_schema: dict = {}
+        artifact_schema: dict = {}
+        supports: dict[str, Any] = {}
+        best_for: list[str] = []
+        not_good_for: list[str] = []
+        resource_profile: ResourceProfile = ResourceProfile()
+        retry_policy: RetryPolicy = RetryPolicy()
+        idempotency_key_fields: list[str] = []
+        side_effects: list[str] = []
+        user_visible_verification: list[str] = []
+        
+        def get_status(self) -> ToolStatus:
+            return ToolStatus.AVAILABLE
+        
+        def estimate_cost(self, inputs: dict[str, Any]) -> float:
+            return 0.0
+        
+        def estimate_runtime(self, inputs: dict[str, Any]) -> float:
+            return 0.0
+        
+        def execute(self, inputs: dict[str, Any]) -> ToolResult:
+            raise NotImplementedError
 
 
 class ComfyUIImage(BaseTool):

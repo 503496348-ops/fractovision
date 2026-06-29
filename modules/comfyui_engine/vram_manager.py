@@ -17,7 +17,7 @@ import os
 import platform
 import time
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Callable, Dict, List, Optional, Tuple
 
 logger = logging.getLogger(__name__)
 
@@ -101,6 +101,11 @@ class VRAMManager:
             self._state = self._auto_select_state()
         else:
             self._state = state
+
+        # soft_lock 和 CPU offload 状态
+        self._soft_locks: Dict[str, threading.Lock] = {}
+        self._global_load_lock = threading.Lock()
+        self._cpu_offloaded: Dict[str, Any] = {}
 
         logger.info(
             f"[VRAM] Initialized: state={self._state.name}, "
@@ -310,6 +315,72 @@ class VRAMManager:
                 torch.cuda.synchronize()
         except ImportError:
             pass
+
+    def _get_model_lock(self, model_id: str) -> threading.Lock:
+        """获取模型级别的软锁，防止同一模型并发加载"""
+        with self._global_load_lock:
+            if model_id not in self._soft_locks:
+                self._soft_locks[model_id] = threading.Lock()
+            return self._soft_locks[model_id]
+
+    def load_model_safe(
+        self,
+        model_id: str,
+        load_fn: Callable,
+        device: Optional[str] = None,
+        memory_bytes: Optional[int] = None,
+        pinned: bool = False,
+        dtype: str = "float16",
+    ) -> Any:
+        """
+        线程安全的模型加载（带软锁）。
+        如果模型已在加载中，等待而非重复加载。
+        """
+        lock = self._get_model_lock(model_id)
+        with lock:
+            if model_id in self._slots:
+                self.touch(model_id)
+                logger.debug(f"[VRAM] soft_lock hit: '{model_id}' already loaded")
+                return self._slots[model_id]
+            model_obj = load_fn()
+            self.load_model(model_id, model_obj, device, memory_bytes, pinned, dtype)
+            return model_obj
+
+    def offload_to_cpu(self, model_id: str) -> bool:
+        """将模型从GPU卸载到CPU内存（保留元数据以快速恢复）"""
+        if model_id not in self._slots:
+            return False
+        slot = self._slots[model_id]
+        try:
+            import torch
+            self._cpu_offloaded[model_id] = {
+                "memory_bytes": slot.memory_bytes,
+                "dtype": slot.dtype,
+                "pinned": slot.pinned,
+            }
+            self._slots.pop(model_id)
+            self._sync_cuda()
+            logger.info(f"[VRAM] Offloaded '{model_id}' to CPU ({slot.memory_bytes / 1024**2:.0f}MB freed)")
+            return True
+        except ImportError:
+            return False
+
+    def restore_from_cpu(self, model_id: str, model_obj: Any, device: Optional[str] = None) -> bool:
+        """从CPU恢复模型到GPU"""
+        if model_id not in self._cpu_offloaded:
+            return False
+        meta = self._cpu_offloaded.pop(model_id)
+        target = device or self._device
+        needed = meta["memory_bytes"] - self.free_vram
+        if needed > 0:
+            self.free_memory(target_bytes=needed)
+        self.load_model(model_id, model_obj, target, meta["memory_bytes"], meta["pinned"], meta["dtype"])
+        logger.info(f"[VRAM] Restored '{model_id}' from CPU to {target}")
+        return True
+
+    def is_offloaded(self, model_id: str) -> bool:
+        """检查模型是否已被卸载到CPU"""
+        return model_id in self._cpu_offloaded
 
     def summary(self) -> Dict[str, Any]:
         """返回管理器状态摘要"""

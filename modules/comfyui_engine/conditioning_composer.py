@@ -52,6 +52,23 @@ class ConditioningBlock:
     weight: float = 1.0
 
 
+@dataclass
+class ControlNetConfig:
+    """ControlNet 配置"""
+    control_net: Any  # ControlNet 模型对象
+    image: Any        # 控制图像 (H, W, C) 或 (B, H, W, C)
+    strength: float = 1.0
+    start_percent: float = 0.0
+    end_percent: float = 1.0
+
+
+@dataclass
+class LoRAConfig:
+    """LoRA 配置"""
+    lora_obj: Any       # LoRA 模型对象
+    strength: float = 1.0
+
+
 class ConditioningComposer:
     """
     多模态条件组合器。
@@ -249,6 +266,107 @@ class ConditioningComposer:
             return ConditioningBlock(embedding=blended, pooled_output=pooled, weight=1.0)
         except ImportError:
             return blocks[0]
+
+    def apply_controlnet(
+        self,
+        conditioning: ConditioningBlock,
+        controlnet_config: ControlNetConfig,
+    ) -> ConditioningBlock:
+        """
+        注入 ControlNet 条件。
+        将控制图像经 ControlNet 编码后叠加到 conditioning 的 embedding 上。
+        """
+        try:
+            import torch
+            cn = controlnet_config.control_net
+            img = controlnet_config.image
+
+            if hasattr(cn, 'get_control'):
+                control_cond = cn.get_control(
+                    img, controlnet_config.strength,
+                    controlnet_config.start_percent,
+                    controlnet_config.end_percent,
+                )
+            elif callable(cn):
+                control_cond = cn(img, strength=controlnet_config.strength)
+            else:
+                logger.warning("[Composer] ControlNet model not callable, skipping")
+                return conditioning
+
+            new_embedding = conditioning.embedding
+            if control_cond is not None:
+                if isinstance(control_cond, torch.Tensor):
+                    new_embedding = conditioning.embedding + control_cond * controlnet_config.strength
+                elif isinstance(control_cond, (list, tuple)):
+                    for ctrl in control_cond:
+                        if isinstance(ctrl, torch.Tensor):
+                            new_embedding = new_embedding + ctrl * controlnet_config.strength
+
+            return ConditioningBlock(
+                embedding=new_embedding,
+                pooled_output=conditioning.pooled_output,
+                area=conditioning.area,
+                timestep_range=conditioning.timestep_range,
+                mask=conditioning.mask,
+                weight=conditioning.weight,
+            )
+        except ImportError:
+            logger.warning("[Composer] torch not available, ControlNet skipped")
+            return conditioning
+        except Exception as e:
+            logger.error(f"[Composer] ControlNet apply failed: {e}")
+            return conditioning
+
+    def stack_lora(
+        self,
+        model: Any,
+        clip: Any,
+        lora_configs: List[LoRAConfig],
+    ) -> Tuple[Any, Any]:
+        """
+        堆叠多个 LoRA 权重到模型和 CLIP 上。
+        按顺序应用，后应用的覆盖前面的同名参数。
+
+        Args:
+            model: 扩散模型对象
+            clip: CLIP 文本编码器对象
+            lora_configs: LoRA 配置列表（按应用顺序）
+
+        Returns:
+            (patched_model, patched_clip) 元组
+        """
+        current_model = model
+        current_clip = clip
+
+        for cfg in lora_configs:
+            try:
+                if hasattr(cfg.lora_obj, 'apply'):
+                    current_model, current_clip = cfg.lora_obj.apply(
+                        current_model, current_clip, cfg.strength
+                    )
+                elif callable(cfg.lora_obj):
+                    result = cfg.lora_obj(current_model, current_clip, cfg.strength)
+                    if isinstance(result, tuple) and len(result) == 2:
+                        current_model, current_clip = result
+                else:
+                    logger.warning(f"[Composer] LoRA object not callable: {type(cfg.lora_obj)}")
+                logger.debug(f"[Composer] Applied LoRA (strength={cfg.strength})")
+            except Exception as e:
+                logger.error(f"[Composer] LoRA apply failed: {e}")
+                continue
+
+        return current_model, current_clip
+
+    def apply_multiple_controlnets(
+        self,
+        conditioning: ConditioningBlock,
+        controlnet_configs: List[ControlNetConfig],
+    ) -> ConditioningBlock:
+        """依次应用多个 ControlNet（叠加效果）"""
+        result = conditioning
+        for cfg in controlnet_configs:
+            result = self.apply_controlnet(result, cfg)
+        return result
 
     def serialize(self, block: ConditioningBlock) -> Dict[str, Any]:
         """序列化条件块（用于保存工作流）"""

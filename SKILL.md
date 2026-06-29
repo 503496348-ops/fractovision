@@ -69,6 +69,16 @@ triggers:
 
 新增 ComfyUI 本地 GPU 加速生成能力，无需 API Key，支持自定义工作流。
 
+### 核心引擎模块
+
+| 模块 | 功能 | 能力 |
+|------|------|------|
+| `vram_manager.py` | VRAM 管理 | 智能显存分配、模型卸载到CPU、VRAM估算、soft_lock防并发 |
+| `dag_executor.py` | DAG 执行引擎 | 拓扑排序、dirty标记部分重执行、缓存哈希、循环检测 |
+| `workflow_queue.py` | 工作流队列 | ComfyUI标准workflow JSON解析、执行队列、事件通知 |
+| `conditioning_composer.py` | 条件组合管线 | ControlNet注入、LoRA堆叠/合并、IP-Adapter |
+| `node_registry.py` | 节点注册系统 | 节点分类、类型转换链、输入验证器 |
+
 ### 视频生成
 
 ```python

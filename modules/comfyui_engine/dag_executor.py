@@ -133,25 +133,75 @@ class DAGExecutor:
                     self._invalidate_dependents(nid)
 
     def _resolve_execution_order(self) -> List[str]:
-        """拓扑排序，只包含需要执行的节点"""
+        """拓扑排序（带循环检测），只包含需要执行的节点"""
         visited: Set[str] = set()
+        in_stack: Set[str] = set()  # 当前DFS路径，用于检测循环
         order: List[str] = []
 
         def dfs(nid: str) -> None:
             if nid in visited:
                 return
-            visited.add(nid)
+            if nid in in_stack:
+                # 检测到循环！
+                cycle_path = [nid]
+                raise RuntimeError(
+                    f"[DAG] Cycle detected involving node '{nid}'. "
+                    f"This would cause infinite recursion. "
+                    f"Check node inputs for circular dependencies."
+                )
+            in_stack.add(nid)
             node = self._nodes.get(nid)
             if node is None:
+                in_stack.discard(nid)
                 return
             for inp_spec in node.inputs.values():
                 source_id = inp_spec.split(".")[0]
                 dfs(source_id)
+            in_stack.discard(nid)
+            visited.add(nid)
             order.append(nid)
 
         for nid in self._nodes:
-            dfs(nid)
+            try:
+                dfs(nid)
+            except RuntimeError as e:
+                if "Cycle detected" in str(e):
+                    raise
+                continue
         return order
+
+    def detect_cycles(self) -> List[List[str]]:
+        """
+        检测图中所有循环，返回循环路径列表。
+        用于诊断和报告，不会中断执行。
+        """
+        cycles = []
+        visited: Set[str] = set()
+        in_stack: Set[str] = set()
+        path: List[str] = []
+
+        def dfs(nid: str) -> None:
+            if nid in visited:
+                return
+            if nid in in_stack:
+                # 找到循环
+                cycle_start = path.index(nid)
+                cycles.append(path[cycle_start:] + [nid])
+                return
+            in_stack.add(nid)
+            path.append(nid)
+            node = self._nodes.get(nid)
+            if node:
+                for inp_spec in node.inputs.values():
+                    source_id = inp_spec.split(".")[0]
+                    dfs(source_id)
+            path.pop()
+            in_stack.discard(nid)
+            visited.add(nid)
+
+        for nid in self._nodes:
+            dfs(nid)
+        return cycles
 
     def _gather_inputs(self, node: DAGNode) -> Tuple[List[Any], Dict[str, Any]]:
         """收集节点的输入参数"""
@@ -171,13 +221,21 @@ class DAGExecutor:
         return args, kwargs
 
     def _compute_fingerprint(self, node: DAGNode) -> str:
-        """计算节点 fingerprint（输入+config 的哈希）"""
+        """计算节点 fingerprint（输入内容+config 的哈希，而非仅时间戳）"""
         import hashlib
         parts = [node.node_id]
         for inp_spec in sorted(node.inputs.values()):
             source_id = inp_spec.split(".")[0]
             if source_id in self._results:
-                parts.append(f"{source_id}:{self._results[source_id].timestamp}")
+                out = self._results[source_id]
+                # 用内容哈希代替时间戳，避免相同内容重复计算
+                try:
+                    import json as _json
+                    content_str = _json.dumps(out.data, sort_keys=True, default=str)[:4096]
+                    content_hash = hashlib.md5(content_str.encode()).hexdigest()[:12]
+                    parts.append(f"{source_id}:{content_hash}")
+                except Exception:
+                    parts.append(f"{source_id}:{out.timestamp}")
         for k, v in sorted(node.config.items()):
             parts.append(f"{k}={v}")
         return hashlib.md5("|".join(parts).encode()).hexdigest()

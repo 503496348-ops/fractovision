@@ -1,6 +1,6 @@
 ---
 name: fractovision
-version: 1.4.0
+version: 1.5.0
 description: "MiniMax全模态创作引擎。图片+视频+语音+音乐四合一生成。当需要AI生成图片、视频、语音、音乐或多媒体内容时使用。"
 trigger:
   manual:
@@ -201,3 +201,8 @@ if load_result.mesh_data:
 
 - 破窗造视新增幻灯片级图片生成提示词包：强制真实可见文字、配色完整性、版式节奏与 manifest 证据。
 
+
+## 2026-07-03 运行时增强
+
+- 新增模型管线加载守卫：识别 flat/nested 仓库布局，并在注意力后端不兼容时要求 fallback。
+- 验证：新增模块通过 py_compile 和定向 pytest，代码不依赖外部服务。

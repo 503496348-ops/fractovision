@@ -1,0 +1,24 @@
+{
+  "repo": "fractovision",
+  "entrypoints": [],
+  "smoke_targets": [
+    "modules/pipeline_loading_guard.py",
+    "scripts/product_convergence_gate.py"
+  ],
+  "known_external_reference_files": [
+    "README.md",
+    "SKILL.md",
+    "modules/comfyui_engine/FUSION_PLAN.md",
+    "modules/comfyui_engine/comfyui_image.py",
+    "modules/comfyui_engine/comfyui_video.py",
+    "modules/comfyui_engine/conditioning_composer.py",
+    "modules/comfyui_engine/dag_executor.py",
+    "modules/comfyui_engine/node_registry.py",
+    "modules/comfyui_engine/vram_manager.py",
+    "modules/comfyui_engine/workflow_queue.py",
+    "modules/model_3d_processor.py",
+    "scripts/product_convergence_gate.py",
+    "tests/test_lora_manifest.py"
+  ],
+  "policy": "External/fusion references are allowed only when explicitly reviewed here; new fusion work must add a smoke target or entrypoint wiring."
+}

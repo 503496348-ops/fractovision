@@ -2,6 +2,7 @@
 """Human-readable environment doctor for one-click users."""
 from __future__ import annotations
 import json, shutil, subprocess, sys
+from anti_ai_style_guard import collect_style_guard_report
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -32,6 +33,11 @@ def main() -> int:
             ok &= check(f'npm script {script}', script in scripts, f'在 package.json scripts 中补充 {script}')
     else:
         print('[INFO] package.json absent; shell/python one-click path is primary')
+    slop = collect_style_guard_report(ROOT)
+    for item in slop.get('checks', []):
+        if not item.get('ok', False):
+            print(f"[WARN] {item.get('name')} — {item.get('fix', '')}")
+
     gate = ROOT/'scripts/product_convergence_gate.py'
     if gate.exists():
         try:

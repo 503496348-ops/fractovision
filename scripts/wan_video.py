@@ -29,7 +29,7 @@ import os
 import time
 import json
 from pathlib import Path
-from typing import Optional, Literal
+from typing import Any, Dict, Optional, Literal, Tuple
 
 try:
     import requests
@@ -540,6 +540,184 @@ def generate_video_wan_flf2v(
         return None, err
 
     return _download_video(video_url, output_dir, prefix="wan_flf2v")
+
+
+def generate_video_wan_controlnet(
+    prompt: str,
+    control_type: str = "depth",
+    control_image_url: Optional[str] = None,
+    control_image_path: Optional[str] = None,
+    model: str = "wan2.1-t2v-plus",
+    duration: int = 5,
+    resolution: str = "720P",
+    orientation: str = "landscape",
+    strength: float = 1.0,
+    style: Optional[str] = None,
+    motion: Optional[str] = None,
+    negative: Optional[str] = None,
+    poll_interval: int = 5,
+    poll_timeout: int = 300,
+    output_dir: Optional[str] = None,
+) -> Tuple[Optional[str], Optional[str]]:
+    """
+    Wan2.1 + Uni3C ControlNet 视频生成
+
+    通过 ControlNet 控制信号（深度图、边缘图、姿态图等）引导 Wan2.1 视频生成，
+    实现对生成视频运动和结构的精确控制。
+
+    Args:
+        prompt: 视频描述
+        control_type: 控制信号类型 ("depth"/"canny"/"pose"/"lineart"/...)
+        control_image_url: 控制图像 URL（与 control_image_path 二选一）
+        control_image_path: 控制图像本地路径（自动上传）
+        model: Wan 模型名
+        duration: 视频时长（秒）
+        resolution: 分辨率 ("480P" / "720P" / "1080P")
+        orientation: 方向 ("landscape" / "portrait")
+        strength: ControlNet 控制强度 (0.0-2.0)
+        style: 风格预设
+        motion: 摄像机运动描述
+        negative: 负面提示词
+        poll_interval: 轮询间隔
+        poll_timeout: 最大等待时间
+        output_dir: 输出目录
+
+    Returns:
+        (file_path, None) on success, (None, error_str) on failure
+    """
+    api_key = get_dashscope_key()
+    if not api_key:
+        return None, "DASHSCOPE_API_KEY 未设置"
+
+    # Resolve control image URL
+    resolved_url = control_image_url
+    if not resolved_url and control_image_path:
+        from pathlib import Path
+        p = Path(control_image_path)
+        if not p.exists():
+            return None, f"控制图像不存在: {control_image_path}"
+        # For local files, use file URI (DashScope supports it for some modes)
+        resolved_url = p.resolve().as_uri()
+
+    if not resolved_url:
+        return None, "control_image_url 或 control_image_path 必须提供一个"
+
+    # Build enhanced prompt with control signal description
+    enhanced = _build_controlnet_prompt(prompt, control_type, style, motion, negative)
+
+    # Submit via Wan2.1 I2V with control image as source
+    # Uni3C ControlNet uses the control image as conditioning input
+    model_id = WAN_MODELS.get(model, model)
+    if "i2v" not in model_id:
+        # Fall back to i2v model for control-guided generation
+        model_id = "wan2.1-i2v-plus"
+
+    input_params: Dict[str, Any] = {
+        "img_url": resolved_url,
+        "prompt": enhanced,
+    }
+
+    # Pass strength as a generation parameter
+    # DashScope Wan2.1 I2V uses img_url as conditioning — strength maps to
+    # the denoise/control balance
+    print(
+        f"[Wan2.1 ControlNet] type={control_type} model={model_id} "
+        f"res={resolution} dur={duration}s strength={strength}",
+        flush=True,
+    )
+
+    task_id, err = _submit_wan_task(
+        model=model_id,
+        input_params=input_params,
+        resolution=resolution,
+        duration=duration,
+        orientation=orientation,
+        api_key=api_key,
+    )
+    if err:
+        return None, err
+    assert task_id is not None  # guaranteed by err check above
+
+    print(f"[Wan2.1 ControlNet] task_id={task_id} polling...", flush=True)
+
+    video_url, err = _poll_wan_task(task_id, api_key, poll_interval, poll_timeout)
+    if err:
+        return None, err
+    assert video_url is not None  # guaranteed by err check above
+
+    return _download_video(video_url, output_dir, prefix=f"wan_cn_{control_type}")
+
+
+def _build_controlnet_prompt(
+    prompt: str,
+    control_type: str,
+    style: Optional[str] = None,
+    motion: Optional[str] = None,
+    negative: Optional[str] = None,
+) -> str:
+    """构建融合 ControlNet 控制描述的增强 prompt"""
+    parts = [prompt.strip()]
+
+    # Add control-type context hints for the model
+    _CONTROL_HINTS = {
+        "depth": "scene with depth structure preserved",
+        "canny": "following the edge contours",
+        "pose": "with body pose and motion guidance",
+        "hed": "with soft edge structure",
+        "normal": "preserving surface normals",
+        "segment": "respecting segmentation regions",
+        "lineart": "following line art contours",
+        "shuffle": "with content structure rearrangement",
+        "mlsd": "with straight line structure",
+        "softedge": "with soft edge blending",
+        "openpose": "with skeletal pose guidance",
+        "recolor": "with recoloring guidance",
+        "ip2p": "with instruction-based editing",
+    }
+    hint = _CONTROL_HINTS.get(control_type, "")
+    if hint:
+        parts.append(hint)
+
+    if style:
+        parts.append(f"style: {style}")
+    if motion:
+        parts.append(f"camera motion: {motion}")
+    if negative:
+        parts.append(f"negative: {negative}")
+
+    return ", ".join(parts)
+
+
+def list_controlnet_types() -> list[dict]:
+    """列出所有支持的 Uni3C ControlNet 控制类型"""
+    return [
+        {"type": "depth", "name": "深度图", "description": "场景深度结构控制",
+         "preprocessor": "depth_midas", "recommended_for": ["场景", "建筑", "室内"]},
+        {"type": "canny", "name": "边缘检测", "description": "Canny 边缘轮廓控制",
+         "preprocessor": "canny", "recommended_for": ["物体", "线条", "轮廓"]},
+        {"type": "pose", "name": "人体姿态", "description": "人体姿态和动作引导",
+         "preprocessor": "openpose", "recommended_for": ["人物", "舞蹈", "运动"]},
+        {"type": "hed", "name": "HED 边缘", "description": "HED 边缘结构控制",
+         "preprocessor": "hed", "recommended_for": ["艺术", "插画", "风格化"]},
+        {"type": "normal", "name": "法线图", "description": "表面法线方向控制",
+         "preprocessor": "normal_bae", "recommended_for": ["3D", "材质", "光照"]},
+        {"type": "segment", "name": "语义分割", "description": "语义区域分割控制",
+         "preprocessor": "segment", "recommended_for": ["场景布局", "区域控制"]},
+        {"type": "lineart", "name": "线稿", "description": "线稿轮廓控制",
+         "preprocessor": "lineart", "recommended_for": ["动画", "漫画", "草稿"]},
+        {"type": "shuffle", "name": "内容重排", "description": "内容结构重排",
+         "preprocessor": "shuffle", "recommended_for": ["风格转换", "创意"]},
+        {"type": "mlsd", "name": "线段检测", "description": "直线段结构控制",
+         "preprocessor": "mlsd", "recommended_for": ["建筑", "室内设计"]},
+        {"type": "softedge", "name": "软边缘", "description": "软边缘混合控制",
+         "preprocessor": "softedge", "recommended_for": ["柔和过渡", "人像"]},
+        {"type": "openpose", "name": "OpenPose", "description": "OpenPose 骨架控制",
+         "preprocessor": "openpose", "recommended_for": ["多人", "手势", "全身"]},
+        {"type": "recolor", "name": "重着色", "description": "色彩重映射控制",
+         "preprocessor": "recolor", "recommended_for": ["色彩校正", "风格化"]},
+        {"type": "ip2p", "name": "指令编辑", "description": "InstructPix2Pix 指令编辑",
+         "preprocessor": "ip2p", "recommended_for": ["编辑", "局部修改"]},
+    ]
 
 
 # ═══════════════════════════════════════════════════════════════

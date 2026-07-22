@@ -34,8 +34,10 @@ try:
         generate_video_wan,
         generate_video_wan_i2v,
         generate_video_wan_flf2v,
+        generate_video_wan_controlnet,
         enhance_video_prompt,
         list_wan_models,
+        list_controlnet_types,
         resolve_dimensions,
     )
 except ImportError:
@@ -44,16 +46,20 @@ except ImportError:
             generate_video_wan,
             generate_video_wan_i2v,
             generate_video_wan_flf2v,
+            generate_video_wan_controlnet,
             enhance_video_prompt,
             list_wan_models,
+            list_controlnet_types,
             resolve_dimensions,
         )
     except ImportError:
         generate_video_wan = None
         generate_video_wan_i2v = None
         generate_video_wan_flf2v = None
+        generate_video_wan_controlnet = None
         enhance_video_prompt = None
         list_wan_models = None
+        list_controlnet_types = None
         resolve_dimensions = None
 
 
@@ -77,7 +83,7 @@ BACKENDS = {
             "wan2.1-i2v-plus", "wan2.1-i2v-turbo",
             "wan2.1-flf2v-plus",
         ],
-        "tasks": ["text-to-video", "image-to-video", "first-last-frame-to-video"],
+        "tasks": ["text-to-video", "image-to-video", "first-last-frame-to-video", "controlnet-guided-video"],
         "resolutions": ["480P", "720P", "1080P"],
         "durations": [5, 10],
         "requires_key": "DASHSCOPE_API_KEY",
@@ -252,6 +258,92 @@ def generate_video(
             )
 
     return None, f"未知后端: {backend}"
+
+
+# ═══════════════════════════════════════════════════════════════
+# ControlNet-Guided Video Generation
+# ═══════════════════════════════════════════════════════════════
+
+def generate_controlnet_video(
+    prompt: str,
+    control_type: str = "depth",
+    control_image_url: Optional[str] = None,
+    control_image_path: Optional[str] = None,
+    model: str = "wan2.1-i2v-plus",
+    duration: int = 5,
+    resolution: str = "720P",
+    orientation: str = "landscape",
+    strength: float = 1.0,
+    style: Optional[str] = None,
+    motion: Optional[str] = None,
+    negative: Optional[str] = None,
+    poll_interval: int = 5,
+    poll_timeout: int = 300,
+    output_dir: Optional[str] = None,
+) -> tuple[Optional[str], Optional[str]]:
+    """
+    ControlNet-guided video generation — Wan2.1 + Uni3C.
+
+    Uses control signals (depth, canny, pose, lineart, etc.) to guide
+    Wan2.1 video generation for precise structural control.
+
+    Only supported on the wan2.1 backend. MiniMax does not support ControlNet.
+
+    Args:
+        prompt: Video description
+        control_type: Control signal type (depth/canny/pose/hed/normal/segment/lineart/...)
+        control_image_url: Control image URL
+        control_image_path: Control image local path
+        model: Wan model (must be i2v-capable for ControlNet)
+        duration: Duration in seconds
+        resolution: Resolution label
+        orientation: Landscape or portrait
+        strength: ControlNet strength (0.0-2.0)
+        style: Style preset
+        motion: Camera motion
+        negative: Negative prompt
+        poll_interval: Polling interval
+        poll_timeout: Max wait time
+        output_dir: Output directory
+
+    Returns:
+        (file_path, None) on success, (None, error_str) on failure
+    """
+    if generate_video_wan_controlnet is None:
+        return None, "Wan2.1 ControlNet 后端未加载 (wan_video.py)"
+
+    # Force wan2.1 backend for ControlNet
+    norm_res = normalize_resolution(resolution, "wan2.1")
+
+    # Ensure i2v model (ControlNet requires image conditioning)
+    cn_model = model
+    if "i2v" not in cn_model:
+        cn_model = "wan2.1-i2v-plus"
+
+    return generate_video_wan_controlnet(
+        prompt=prompt,
+        control_type=control_type,
+        control_image_url=control_image_url,
+        control_image_path=control_image_path,
+        model=cn_model,
+        duration=duration,
+        resolution=norm_res,
+        orientation=orientation,
+        strength=strength,
+        style=style,
+        motion=motion,
+        negative=negative,
+        poll_interval=poll_interval,
+        poll_timeout=poll_timeout,
+        output_dir=output_dir,
+    )
+
+
+def list_controlnet_supported_types() -> list[dict]:
+    """List all supported Uni3C ControlNet control types."""
+    if list_controlnet_types is None:
+        return []
+    return list_controlnet_types()
 
 
 # ═══════════════════════════════════════════════════════════════

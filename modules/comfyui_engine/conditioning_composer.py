@@ -23,6 +23,93 @@ class BlendMode(Enum):
     MASKED = "masked"         # 遮罩混合
 
 
+class ControlNetType(Enum):
+    """Uni3C ControlNet 控制类型 — 统一控制信号分类"""
+    DEPTH = "depth"               # 深度图控制
+    CANNY = "canny"               # 边缘检测控制
+    POSE = "pose"                 # 人体姿态控制
+    HED = "hed"                   # HED 边缘控制
+    NORMAL = "normal"             # 法线图控制
+    SEGMENT = "segment"           # 语义分割控制
+    LINEART = "lineart"           # 线稿控制
+    SHUFFLE = "shuffle"           # 内容重排控制
+    MLSD = "mlsd"                 # 线段检测控制
+    SOFTEDGE = "softedge"         # 软边缘控制
+    OPENPOSE = "openpose"         # OpenPose 骨架控制
+    RECOLOR = "recolor"           # 重着色控制
+    IP2P = "ip2p"                 # InstructPix2Pix 控制
+
+
+@dataclass
+class Uni3CConfig:
+    """Uni3C 统一 ControlNet 配置
+
+    Uni3C 是一种统一的 ControlNet 架构，支持多种控制信号（深度、边缘、姿态等）
+    通过单一模型处理所有控制类型，适用于图像和视频生成。
+
+    Attributes:
+        control_type: 控制信号类型
+        strength: 控制强度 (0.0-2.0, 默认1.0)
+        start_percent: 控制起始百分比 (0.0-1.0, 去噪开始)
+        end_percent: 控制结束百分比 (0.0-1.0, 去噪结束)
+        control_image: 控制图像路径或张量
+        preprocessor: 预处理器名称 (None=自动选择)
+        model_path: Uni3C 模型路径 (None=使用默认)
+    """
+    control_type: ControlNetType
+    strength: float = 1.0
+    start_percent: float = 0.0
+    end_percent: float = 1.0
+    control_image: Any = None
+    preprocessor: Optional[str] = None
+    model_path: Optional[str] = None
+
+    @classmethod
+    def from_type(
+        cls,
+        control_type: str,
+        control_image: Any = None,
+        strength: float = 1.0,
+        **kwargs: Any,
+    ) -> "Uni3CConfig":
+        """从字符串类型名创建配置"""
+        ct = ControlNetType(control_type.lower())
+        return cls(control_type=ct, control_image=control_image, strength=strength, **kwargs)
+
+    def get_preprocessor(self) -> str:
+        """获取推荐的预处理器名称"""
+        if self.preprocessor:
+            return self.preprocessor
+        _PREPROCESSOR_MAP = {
+            ControlNetType.DEPTH: "depth_midas",
+            ControlNetType.CANNY: "canny",
+            ControlNetType.POSE: "openpose",
+            ControlNetType.HED: "hed",
+            ControlNetType.NORMAL: "normal_bae",
+            ControlNetType.SEGMENT: "segment",
+            ControlNetType.LINEART: "lineart",
+            ControlNetType.SHUFFLE: "shuffle",
+            ControlNetType.MLSD: "mlsd",
+            ControlNetType.SOFTEDGE: "softedge",
+            ControlNetType.OPENPOSE: "openpose",
+            ControlNetType.RECOLOR: "recolor",
+            ControlNetType.IP2P: "ip2p",
+        }
+        return _PREPROCESSOR_MAP.get(self.control_type, "none")
+
+    def to_dict(self) -> Dict[str, Any]:
+        """序列化为字典"""
+        return {
+            "control_type": self.control_type.value,
+            "strength": self.strength,
+            "start_percent": self.start_percent,
+            "end_percent": self.end_percent,
+            "preprocessor": self.get_preprocessor(),
+            "has_image": self.control_image is not None,
+            "model_path": self.model_path,
+        }
+
+
 @dataclass
 class Area:
     """空间区域定义"""

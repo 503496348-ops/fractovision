@@ -221,3 +221,9 @@ if load_result.mesh_data:
 - `scripts/doctor.py`：检查 README、SKILL、入口脚本、package scripts 与产品收敛门禁。
 - `scripts/smoke.py`：运行 doctor、产品收敛门禁与 Python 编译级冒烟。
 - `tests/test_one_click_open_box.py`：契约测试，防止 README 写了但脚本缺失。
+
+## 快速开始
+
+```bash
+python3 scripts/cli.py --help
+```
